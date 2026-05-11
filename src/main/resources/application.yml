@@ -1,0 +1,21 @@
+server:
+  port: 8080
+
+modbus:
+  tcp:
+    server:
+      default-port: 5020
+      default-unit-id: 1
+  rtu:
+    server:
+      default-baud-rate: 9600
+      default-data-bits: 8
+      default-stop-bits: 1
+      default-parity: 0
+      default-unit-id: 1
+  simulator:
+    enabled: true
+    interval-ms: 2000
+  data-store:
+    register-count: 100
+    coil-count: 100

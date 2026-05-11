@@ -1,0 +1,5 @@
+/src/main/frontend/node/node_modules/
+/src/main/frontend/node_modules/
+/.idea/
+/.claude/
+/src/main/frontend/dist/
