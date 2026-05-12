@@ -16,95 +16,147 @@
 | 状态管理 | Pinia | Vue 3 官方推荐 |
 | HTTP 客户端 | Axios | REST API 调用 |
 
+## 功能特性
+
+- **Modbus TCP 服务端** — 模拟从站设备，支持线圈和寄存器的读写操作
+- **Modbus TCP 客户端** — 连接远程 TCP 服务端，支持全部标准功能码（FC01-FC06, FC15-FC16）
+- **Modbus RTU 服务端** — 基于串口的从站模拟，支持自定义波特率、数据位等参数
+- **Modbus RTU 客户端** — 通过串口连接 RTU 从站设备
+- **数据模拟器** — 自动生成模拟数据（计数器、正弦波、随机漂移、线圈翻转）
+- **轮询监控** — 创建定时轮询任务，WebSocket 实时推送数据，ECharts 实时折线图
+- **虚拟串口** — 无需硬件即可测试 RTU 协议（macOS/Linux 使用 socat，Windows 使用 com0com）
+- **跨平台** — 支持 macOS、Linux 和 Windows
+
+## 快速开始
+
+### 前置条件
+
+- JDK 17+
+- Maven 3.8+
+- Node.js 20+（前端开发时需要）
+
+### 启动应用
+
+**方式一：Maven 一键启动**
+
+```bash
+mvn org.springframework.boot:spring-boot-maven-plugin:3.4.1:run -DskipTests
+```
+
+访问 http://localhost:8080
+
+**方式二：前后端分离开发**
+
+```bash
+# 终端1：启动后端
+mvn compile -DskipTests
+mvn org.springframework.boot:spring-boot-maven-plugin:3.4.1:run
+
+# 终端2：启动前端开发服务器
+cd src/main/frontend
+npm run dev
+```
+
+前端开发服务器运行在 http://localhost:5173，自动代理 API 和 WebSocket 到后端 8080 端口。
+
+**方式三：打包为 JAR**
+
+```bash
+# 构建前端
+cd src/main/frontend && npm run build && cd ../..
+
+# 复制前端到 static
+cp -r src/main/frontend/dist/* src/main/resources/static/
+
+# 打包运行
+mvn package -DskipTests
+java -jar target/modbus-demo-0.1.0.jar
+```
+
+## 使用指南
+
+### TCP 协议测试流程
+
+1. 打开 **TCP 服务端** 页面，点击「启动」（默认端口 5020）
+2. 服务端启动后，模拟器自动运行，数据实时更新
+3. 打开 **TCP 客户端** 页面，连接 `localhost:5020`
+4. 选择功能码和地址，执行读写操作
+5. 在 **轮询监控** 页面创建轮询任务，查看实时图表
+
+### RTU 协议测试流程
+
+1. 打开 **RTU 服务端** 页面，先点击「创建虚拟串口对」
+2. 从串口下拉框选择虚拟端口，配置参数后点击「启动」
+3. 打开 **RTU 客户端** 页面，选择对应的虚拟端口，点击「连接」
+4. 执行读写操作
+
+> **虚拟串口安装：**
+> - macOS: `brew install socat`
+> - Linux: `sudo apt install socat` 或 `sudo yum install socat`
+> - Windows: 安装 [com0com](https://sourceforge.net/projects/com0com/)
+
+### 支持的 Modbus 功能码
+
+| 功能码 | 名称 | 类型 |
+|---|---|---|
+| FC01 | 读线圈 | 读取 |
+| FC02 | 读离散输入 | 读取 |
+| FC03 | 读保持寄存器 | 读取 |
+| FC04 | 读输入寄存器 | 读取 |
+| FC05 | 写单个线圈 | 写入 |
+| FC06 | 写单个寄存器 | 写入 |
+| FC15 | 写多个线圈 | 写入 |
+| FC16 | 写多个寄存器 | 写入 |
+
 ## 项目结构
 
 ```
 modbus-demo/
 ├── pom.xml
-├── src/
-│   ├── main/
-│   │   ├── java/com/modbus/demo/
-│   │   │   ├── ModbusDemoApplication.java          # 启动类
-│   │   │   ├── config/
-│   │   │   │   ├── WebSocketConfig.java             # WebSocket 端点配置
-│   │   │   │   └── SpaWebConfig.java                # Vue Router SPA 转发
-│   │   │   ├── modbus/
-│   │   │   │   ├── common/
-│   │   │   │   │   └── ModbusFunction.java          # Modbus 功能码枚举
-│   │   │   │   ├── server/
-│   │   │   │   │   ├── ModbusDataStore.java         # 数据模型（4种数据区）
-│   │   │   │   │   ├── ModbusTcpServer.java         # TCP Slave 服务端
-│   │   │   │   │   └── ModbusRtuServer.java         # RTU Slave 服务端
-│   │   │   │   ├── client/
-│   │   │   │   │   ├── ModbusTcpClient.java         # TCP Master 客户端
-│   │   │   │   │   └── ModbusRtuClient.java        # RTU Master 客户端
-│   │   │   │   └── simulator/
-│   │   │   │       └── DataSimulator.java           # 数据模拟器
-│   │   │   ├── poll/
-│   │   │   │   ├── PollTask.java                    # 轮询任务
-│   │   │   │   └── PollManager.java                 # 轮询管理器
-│   │   │   ├── serial/
-│   │   │   │   ├── SerialPortService.java           # 串口枚举
-│   │   │   │   └── VirtualPortManager.java          # socat 虚拟串口
-│   │   │   ├── websocket/
-│   │   │   │   ├── DataWebSocketHandler.java        # WebSocket 处理器
-│   │   │   │   └── DataPushService.java             # 数据推送服务
-│   │   │   ├── controller/
-│   │   │   │   ├── TcpServerController.java         # TCP 服务端 API
-│   │   │   │   ├── RtuServerController.java         # RTU 服务端 API
-│   │   │   │   ├── TcpClientController.java         # TCP 客户端 API
-│   │   │   │   ├── RtuClientController.java         # RTU 客户端 API
-│   │   │   │   ├── PollController.java              # 轮询 API
-│   │   │   │   └── SerialPortController.java        # 串口 API
-│   │   │   └── model/request/                       # 请求 DTO
-│   │   ├── resources/
-│   │   │   ├── application.yml                      # 配置文件
-│   │   │   └── static/                              # 前端构建产物
-│   │   └── frontend/                                # Vue 3 项目源码
-│   │       ├── package.json
-│   │       ├── vite.config.js
-│   │       └── src/
-│   │           ├── App.vue                          # 主布局（侧边栏导航）
-│   │           ├── router/index.js                  # 路由配置
-│   │           ├── api/index.js                     # REST API 封装
-│   │           ├── composables/useWebSocket.js      # WebSocket 组合式函数
-│   │           └── views/
-│   │               ├── DashboardView.vue            # 总览页
-│   │               ├── TcpServerView.vue            # TCP 服务端页
-│   │               ├── TcpClientView.vue            # TCP 客户端页
-│   │               ├── RtuServerView.vue            # RTU 服务端页
-│   │               ├── RtuClientView.vue            # RTU 客户端页
-│   │               └── PollView.vue                 # 轮询监控页
-│   └── test/
-└── CLAUDE.md
+├── src/main/java/com/modbus/demo/
+│   ├── ModbusDemoApplication.java          # 启动类
+│   ├── config/
+│   │   ├── WebSocketConfig.java            # WebSocket 配置
+│   │   └── SpaWebConfig.java               # Vue Router SPA 转发
+│   ├── modbus/
+│   │   ├── common/ModbusFunction.java      # 功能码枚举
+│   │   ├── server/
+│   │   │   ├── ModbusDataStore.java        # 数据模型（4种数据区）
+│   │   │   ├── ModbusTcpServer.java        # TCP Slave
+│   │   │   └── ModbusRtuServer.java        # RTU Slave
+│   │   ├── client/
+│   │   │   ├── ModbusTcpClient.java        # TCP Master
+│   │   │   └── ModbusRtuClient.java        # RTU Master
+│   │   └── simulator/DataSimulator.java    # 数据模拟器
+│   ├── poll/
+│   │   ├── PollTask.java                   # 轮询任务
+│   │   └── PollManager.java                # 轮询管理器
+│   ├── serial/
+│   │   ├── SerialPortService.java          # 串口枚举
+│   │   └── VirtualPortManager.java         # 虚拟串口（跨平台）
+│   ├── websocket/
+│   │   ├── DataWebSocketHandler.java       # WebSocket 处理器
+│   │   └── DataPushService.java            # 数据推送服务
+│   ├── controller/                         # REST API 控制器
+│   └── model/request/                      # 请求 DTO
+├── src/main/frontend/                      # Vue 3 前端
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── App.vue                         # 主布局（侧边栏导航）
+│       ├── router/index.js                 # 路由配置
+│       ├── api/index.js                     # REST API 封装
+│       ├── composables/useWebSocket.js      # WebSocket 组合式函数
+│       └── views/
+│           ├── DashboardView.vue           # 总览页
+│           ├── TcpServerView.vue           # TCP 服务端页
+│           ├── TcpClientView.vue           # TCP 客户端页
+│           ├── RtuServerView.vue           # RTU 服务端页
+│           ├── RtuClientView.vue           # RTU 客户端页
+│           └── PollView.vue                # 轮询监控页
+└── src/main/resources/
+    └── application.yml                     # 配置文件
 ```
-
-## 核心设计
-
-### Modbus 数据模型 (ModbusDataStore)
-
-服务端模拟从站设备，内存中维护 4 种数据区（各 100 个）：
-
-| 数据区 | 类型 | 读写 | Modbus 功能码 |
-|---|---|---|---|
-| Coils | boolean | 读写 | FC01 读 / FC05 写单 / FC15 写多 |
-| Discrete Inputs | boolean | 只读 | FC02 读 |
-| Holding Registers | 16-bit int | 读写 | FC03 读 / FC06 写单 / FC16 写多 |
-| Input Registers | 16-bit int | 只读 | FC04 读 |
-
-### 数据模拟器 (DataSimulator)
-
-`@Scheduled` 定时任务，每 2 秒修改 DataStore：
-
-- **计数器** — Holding Register 0 递增（0→65535 循环）
-- **正弦波** — Holding Register 1 跟随 sin(t)
-- **随机漂移** — Input Register 0 随机游走
-- **随机数** — Input Register 1 随机值
-- **翻转** — Coil 0 每 5 次翻转，Coil 1 每 3 次随机
-
-### 轮询 + WebSocket
-
-`PollManager` 管理多个 `ScheduledExecutorService` 轮询任务，每次读取结果通过 `DataPushService` 广播到所有 WebSocket 客户端。前端通过 `useWebSocket` 组合式函数订阅数据。
 
 ## REST API
 
@@ -151,73 +203,7 @@ WebSocket:
   /ws/data  → 实时推送 {type: "simulator"|"poll", data: {...}, timestamp}
 ```
 
-## 使用方法
-
-### 前置条件
-
-- JDK 17+
-- Maven 3.8+
-- Node.js 20+（前端开发时需要，Maven 构建时自动下载）
-
-### 启动应用
-
-**方式一：Maven 一键启动**
-
-```bash
-cd modbus-demo
-mvn org.springframework.boot:spring-boot-maven-plugin:3.4.1:run -DskipTests
-```
-
-访问 http://localhost:8080
-
-**方式二：前后端分离开发**
-
-```bash
-# 终端1：启动后端
-mvn compile -DskipTests
-mvn org.springframework.boot:spring-boot-maven-plugin:3.4.1:run
-
-# 终端2：启动前端开发服务器
-cd src/main/frontend
-npm run dev
-```
-
-前端开发服务器运行在 http://localhost:5173，自动代理 API 和 WebSocket 到后端 8080 端口。
-
-**方式三：打包为 JAR**
-
-```bash
-# 先构建前端
-cd src/main/frontend && npm run build && cd ../..
-
-# 复制前端到 static
-cp -r src/main/frontend/dist/* src/main/resources/static/
-
-# 打包
-mvn package -DskipTests
-
-# 运行
-java -jar target/modbus-demo-0.1.0.jar
-```
-
-### TCP 协议测试流程
-
-1. 打开 **TCP 服务端** 页面，点击「启动」（默认端口 5020）
-2. 服务端启动后，模拟器自动运行，数据实时更新
-3. 打开 **TCP 客户端** 页面，连接 `localhost:5020`
-4. 选择功能码和地址，执行读写操作
-5. 在 **轮询监控** 页面创建轮询任务，查看实时图表
-
-### RTU 协议测试流程
-
-1. 打开 **RTU 服务端** 页面，先点击「创建虚拟串口对」（需要 socat）
-2. 选择 `/tmp/vmodbus0`，点击「启动」
-3. 打开 **RTU 客户端** 页面，连接 `/tmp/vmodbus1`
-4. 执行读写操作
-
-> 虚拟串口需要 socat：`brew install socat`
-
-### 配置参数
+## 配置参数
 
 `application.yml` 中可修改的默认值：
 
@@ -225,19 +211,46 @@ java -jar target/modbus-demo-0.1.0.jar
 modbus:
   tcp:
     server:
-      default-port: 5020        # TCP 服务端默认端口
-      default-unit-id: 1        # 默认从站地址
+      default-port: 5020
+      default-unit-id: 1
   rtu:
     server:
-      default-baud-rate: 9600   # 默认波特率
-      default-data-bits: 8      # 默认数据位
-      default-stop-bits: 1      # 默认停止位
-      default-parity: 0         # 默认校验（0=无）
-      default-unit-id: 1        # 默认从站地址
+      default-baud-rate: 9600
+      default-data-bits: 8
+      default-stop-bits: 1
+      default-parity: 0        # 0=无, 1=奇校验, 2=偶校验
+      default-unit-id: 1
   simulator:
-    enabled: true               # 是否启用模拟器
-    interval-ms: 2000           # 模拟更新间隔（毫秒）
+    enabled: true
+    interval-ms: 2000
   data-store:
-    register-count: 100         # 寄存器数量
-    coil-count: 100             # 线圈数量
+    register-count: 100
+    coil-count: 100
 ```
+
+## 数据模拟器
+
+模拟器通过 `@Scheduled` 定时任务，每 2 秒修改 DataStore 中的数据：
+
+| 地址 | 数据区 | 模拟策略 |
+|---|---|---|
+| HR 0 | Holding Register | 计数器（0→65535 循环递增） |
+| HR 1 | Holding Register | 正弦波 sin(t) |
+| IR 0 | Input Register | 随机游走 |
+| IR 1 | Input Register | 随机数 |
+| Coil 0 | Coil | 每 5 次翻转 |
+| Coil 1 | Coil | 每 3 次随机 |
+
+## 跨平台说明
+
+| 平台 | 串口格式 | 虚拟串口工具 |
+|---|---|---|
+| macOS | `/dev/cu.*`, `/dev/tty.*` | socat (`brew install socat`) |
+| Linux | `/dev/ttyS*`, `/dev/ttyUSB*` | socat (`apt install socat`) |
+| Windows | `COM1`, `COM2`, ... | [com0com](https://sourceforge.net/projects/com0com/) |
+
+串口枚举使用 jSerialComm，自动识别当前平台的所有可用串口，无需手动配置。
+
+## License
+
+Apache-2.0

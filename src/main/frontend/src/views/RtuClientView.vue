@@ -6,12 +6,34 @@
         <el-form-item label="串口">
           <el-select v-model="serialPort" placeholder="选择串口" style="width: 200px">
             <el-option v-for="p in serialPorts" :key="p.name" :label="p.description" :value="p.name" />
-            <el-option label="/tmp/vmodbus1 (虚拟)" value="/tmp/vmodbus1" />
+            <el-option v-if="virtualPort1" :label="virtualPort1 + ' (虚拟-客户端)'" :value="virtualPort1" />
+            <el-option v-else-if="!virtualRunning" label="(需先创建虚拟串口)" value="" disabled />
           </el-select>
         </el-form-item>
         <el-form-item label="波特率">
           <el-select v-model="baudRate" style="width: 100px">
             <el-option v-for="b in [9600, 19200, 38400, 57600, 115200]" :key="b" :label="String(b)" :value="b" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="数据位">
+          <el-select v-model="dataBits" style="width: 80px">
+            <el-option :value="8" label="8" />
+            <el-option :value="7" label="7" />
+            <el-option :value="6" label="6" />
+            <el-option :value="5" label="5" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="停止位">
+          <el-select v-model="stopBits" style="width: 80px">
+            <el-option :value="1" label="1" />
+            <el-option :value="2" label="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="校验">
+          <el-select v-model="parity" style="width: 80px">
+            <el-option :value="0" label="无" />
+            <el-option :value="1" label="奇" />
+            <el-option :value="2" label="偶" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -89,9 +111,14 @@ import api from '../api'
 
 const serialPort = ref('/tmp/vmodbus1')
 const baudRate = ref(9600)
+const dataBits = ref(8)
+const stopBits = ref(1)
+const parity = ref(0)
 const status = ref({ connected: false })
 const loading = ref(false)
 const serialPorts = ref([])
+const virtualRunning = ref(false)
+const virtualPort1 = ref(null)
 
 const readForm = ref({ unitId: 1, function: 3, offset: 0, quantity: 10 })
 const writeForm = ref({ unitId: 1, function: 6, offset: 0, valuesStr: '0' })
@@ -110,6 +137,9 @@ const connect = async () => {
     await api.connectRtuClient({
       serialPort: serialPort.value,
       baudRate: baudRate.value,
+      dataBits: dataBits.value,
+      stopBits: stopBits.value,
+      parity: parity.value,
     })
     ElMessage.success('已连接')
     await refresh()
@@ -167,9 +197,20 @@ const doWrite = async () => {
 
 const refresh = async () => {
   try {
-    const [cRes, pRes] = await Promise.all([api.getRtuClientStatus(), api.listSerialPorts()])
+    const [cRes, pRes, vRes] = await Promise.all([api.getRtuClientStatus(), api.listSerialPorts(), api.getVirtualPortStatus()])
     status.value = cRes.data
     serialPorts.value = pRes.data
+    virtualRunning.value = vRes.data.running
+    if (vRes.data.running && vRes.data.port1) {
+      virtualPort1.value = vRes.data.port1
+    }
+    if (cRes.data.connected) {
+      serialPort.value = cRes.data.serialPort
+      baudRate.value = cRes.data.baudRate
+      if (cRes.data.dataBits) dataBits.value = cRes.data.dataBits
+      if (cRes.data.stopBits) stopBits.value = cRes.data.stopBits
+      if (cRes.data.parity !== undefined) parity.value = cRes.data.parity
+    }
   } catch (e) {
     console.error('Refresh failed:', e)
   }

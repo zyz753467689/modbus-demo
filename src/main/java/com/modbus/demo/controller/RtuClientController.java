@@ -25,8 +25,10 @@ public class RtuClientController {
     public ResponseEntity<?> connect(@RequestBody RtuClientConnectRequest request) {
         try {
             int parity = request.getParity() != null ? request.getParity() : 0;
+            int dataBits = request.getDataBits() != null ? request.getDataBits() : 8;
+            int stopBits = request.getStopBits() != null ? request.getStopBits() : 1;
             rtuClient.connect(request.getSerialPort(), request.getBaudRate(),
-                    request.getDataBits(), request.getStopBits(), parity);
+                    dataBits, stopBits, parity);
             return ResponseEntity.ok(Map.of("message", "Connected", "serialPort", request.getSerialPort(), "baudRate", request.getBaudRate()));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -46,6 +48,9 @@ public class RtuClientController {
         if (rtuClient.isConnected()) {
             status.put("serialPort", rtuClient.getSerialPort());
             status.put("baudRate", rtuClient.getBaudRate());
+            status.put("dataBits", rtuClient.getDataBits());
+            status.put("stopBits", rtuClient.getStopBits());
+            status.put("parity", rtuClient.getParity());
         }
         return ResponseEntity.ok(status);
     }

@@ -70,6 +70,18 @@ public class ModbusRtuClient {
         return serialParams != null ? serialParams.getBaudRate() : 0;
     }
 
+    public synchronized int getDataBits() {
+        return serialParams != null ? serialParams.getDatabits() : 0;
+    }
+
+    public synchronized int getStopBits() {
+        return serialParams != null ? serialParams.getStopbits() : 0;
+    }
+
+    public synchronized int getParity() {
+        return serialParams != null ? serialParams.getParity() : 0;
+    }
+
     public synchronized Map<String, Object> read(int unitId, ModbusFunction function, int offset, int quantity)
             throws ModbusException {
         if (!isConnected()) {

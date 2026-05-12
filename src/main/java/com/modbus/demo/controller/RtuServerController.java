@@ -71,6 +71,9 @@ public class RtuServerController {
         if (rtuServer.isRunning()) {
             status.put("serialPort", rtuServer.getSerialPort());
             status.put("baudRate", rtuServer.getBaudRate());
+            status.put("dataBits", rtuServer.getDataBits());
+            status.put("stopBits", rtuServer.getStopBits());
+            status.put("parity", rtuServer.getParity());
             status.put("unitId", rtuServer.getUnitId());
         }
         return ResponseEntity.ok(status);

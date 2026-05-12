@@ -75,6 +75,18 @@ public class ModbusRtuServer {
         return serialParams != null ? serialParams.getBaudRate() : 0;
     }
 
+    public synchronized int getDataBits() {
+        return serialParams != null ? serialParams.getDatabits() : 0;
+    }
+
+    public synchronized int getStopBits() {
+        return serialParams != null ? serialParams.getStopbits() : 0;
+    }
+
+    public synchronized int getParity() {
+        return serialParams != null ? serialParams.getParity() : 0;
+    }
+
     public synchronized int getUnitId() {
         return unitId;
     }

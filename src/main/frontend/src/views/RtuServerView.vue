@@ -6,12 +6,34 @@
         <el-form-item label="串口">
           <el-select v-model="serialPort" placeholder="选择串口" style="width: 200px">
             <el-option v-for="p in serialPorts" :key="p.name" :label="p.description" :value="p.name" />
-            <el-option label="/tmp/vmodbus0 (虚拟)" value="/tmp/vmodbus0" />
+            <el-option v-if="virtualPort0" :label="virtualPort0 + ' (虚拟-服务端)'" :value="virtualPort0" />
+            <el-option v-else-if="!virtualRunning" label="(需先创建虚拟串口)" value="" disabled />
           </el-select>
         </el-form-item>
         <el-form-item label="波特率">
           <el-select v-model="baudRate" style="width: 100px">
             <el-option v-for="b in [9600, 19200, 38400, 57600, 115200]" :key="b" :label="String(b)" :value="b" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="数据位">
+          <el-select v-model="dataBits" style="width: 80px">
+            <el-option :value="8" label="8" />
+            <el-option :value="7" label="7" />
+            <el-option :value="6" label="6" />
+            <el-option :value="5" label="5" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="停止位">
+          <el-select v-model="stopBits" style="width: 80px">
+            <el-option :value="1" label="1" />
+            <el-option :value="2" label="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="校验">
+          <el-select v-model="parity" style="width: 80px">
+            <el-option :value="0" label="无" />
+            <el-option :value="1" label="奇" />
+            <el-option :value="2" label="偶" />
           </el-select>
         </el-form-item>
         <el-form-item label="Unit ID">
@@ -36,7 +58,7 @@
         </el-form-item>
       </el-form>
       <el-alert v-if="virtualRunning" type="info" :closable="false" show-icon>
-        虚拟串口已创建: /tmp/vmodbus0 (服务端) <-> /tmp/vmodbus1 (客户端)
+        虚拟串口已创建: {{ virtualPort0 || '/tmp/vmodbus0' }} (服务端) <-> {{ virtualPort1 || '/tmp/vmodbus1' }} (客户端)
       </el-alert>
     </el-card>
 
@@ -71,6 +93,9 @@ import api from '../api'
 
 const serialPort = ref('/tmp/vmodbus0')
 const baudRate = ref(9600)
+const dataBits = ref(8)
+const stopBits = ref(1)
+const parity = ref(0)
 const unitId = ref(1)
 const status = ref({ running: false })
 const serverData = ref(null)
@@ -78,6 +103,8 @@ const loading = ref(false)
 const serialPorts = ref([])
 const virtualRunning = ref(false)
 const virtualLoading = ref(false)
+const virtualPort0 = ref(null)
+const virtualPort1 = ref(null)
 
 const holdingRegs = computed(() => {
   if (!serverData.value?.holdingRegisters) return []
@@ -95,6 +122,9 @@ const start = async () => {
     await api.startRtuServer({
       serialPort: serialPort.value,
       baudRate: baudRate.value,
+      dataBits: dataBits.value,
+      stopBits: stopBits.value,
+      parity: parity.value,
       unitId: unitId.value,
     })
     ElMessage.success('RTU 服务端已启动')
@@ -121,8 +151,11 @@ const stop = async () => {
 const startVirtual = async () => {
   virtualLoading.value = true
   try {
-    await api.startVirtualPorts()
+    const res = await api.startVirtualPorts()
     virtualRunning.value = true
+    virtualPort0.value = res.data.port0
+    virtualPort1.value = res.data.port1
+    serialPort.value = res.data.port0
     ElMessage.success('虚拟串口已创建')
   } catch (e) {
     ElMessage.error('创建失败: ' + (e.response?.data?.error || e.message))
@@ -134,6 +167,8 @@ const startVirtual = async () => {
 const stopVirtual = async () => {
   await api.stopVirtualPorts()
   virtualRunning.value = false
+  virtualPort0.value = null
+  virtualPort1.value = null
 }
 
 const refresh = async () => {
@@ -146,8 +181,17 @@ const refresh = async () => {
     status.value = sRes.data
     serialPorts.value = pRes.data
     virtualRunning.value = vRes.data.running
+    if (vRes.data.running && vRes.data.port0) {
+      virtualPort0.value = vRes.data.port0
+    }
 
     if (sRes.data.running) {
+      serialPort.value = sRes.data.serialPort
+      baudRate.value = sRes.data.baudRate
+      unitId.value = sRes.data.unitId
+      if (sRes.data.dataBits) dataBits.value = sRes.data.dataBits
+      if (sRes.data.stopBits) stopBits.value = sRes.data.stopBits
+      if (sRes.data.parity !== undefined) parity.value = sRes.data.parity
       const dataRes = await api.getRtuServerData()
       serverData.value = dataRes.data
     }
